@@ -87,7 +87,6 @@ bool Preprocess (istream& in, ostream& out, const  path& in_file, const vector<p
     return true;
 }
 
-// напишите эту функцию
 bool IsOpenFiles (const path& in_file, const path& out_file, const vector<path>& include_directories) {
     if (!filesystem::exists(in_file)) {
         return false;
