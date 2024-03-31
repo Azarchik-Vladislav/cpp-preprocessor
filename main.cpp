@@ -14,12 +14,102 @@ path operator""_p(const char* data, std::size_t sz) {
     return path(data, data + sz);
 }
 
+void PrintError(const std::string& name_file, const path& current_directory, const int& line) {
+    std::cout << "unknown include file "s << name_file << " at file "s << current_directory.string()
+              << " at line "s << line << std::endl;
+}
+
+pair<path, bool> IsIncludePath(const path& current_path, const vector<path>& include_directories){
+    path full_path;
+
+    for(const auto& dir : include_directories) {
+        full_path = dir / current_path;
+        full_path.make_preferred();
+            
+        if(filesystem::exists(full_path)){
+           return {full_path,true};
+           break;
+        }
+    }
+    
+    return {""_p, false};
+}
+
+bool Preprocess (istream& in, ostream& out, const  path& in_file, const vector<path>& include_directories) {
+    static regex include_from_current_dir(R"/(\s*#\s*include\s*"([^"]*)"\s*)/");
+    static regex include_from_vec_of_dir(R"/(\s*#\s*include\s*<([^>]*)>\s*)/");
+
+    smatch matched;
+    int line_in_file = 0;
+    std::string str;
+    
+    while(getline(in, str)){
+        ++line_in_file;
+
+        if(regex_match(str, matched, include_from_current_dir)) {
+            path current_path = string(matched[1]);
+            path full_path = in_file.parent_path() / current_path;
+            full_path.make_preferred();
+
+            ifstream in_current_directory(full_path);
+            if(filesystem::exists(full_path)){
+                Preprocess(in_current_directory, out, full_path, include_directories);
+            } else if (!filesystem::exists(full_path)) {
+                const auto& [path_name, value] = IsIncludePath(current_path, include_directories);
+
+                if(value){
+                    ifstream in_current_directory(path_name);
+                    Preprocess(in_current_directory, out, path_name, include_directories);
+                } else {
+                    PrintError(string(matched[1]), in_file, line_in_file);
+                    return false;
+                } 
+            } else {
+                PrintError(string(matched[1]), in_file, line_in_file);
+                return false;
+            } 
+        } else if(regex_match(str, matched, include_from_vec_of_dir)) {
+            path current_path = string(matched[1]);
+            const auto& [path_name, value] = IsIncludePath(current_path, include_directories);
+
+            if(value){
+                ifstream in_current_directory(path_name);
+                Preprocess(in_current_directory, out, path_name, include_directories);
+            } else {
+                PrintError(string(matched[1]), in_file, line_in_file);
+                return false;
+            }
+        } else {
+            out << str << std::endl;
+        }
+    }
+
+    return true;
+}
+
 // напишите эту функцию
-bool Preprocess(const path& in_file, const path& out_file, const vector<path>& include_directories);
+bool Preprocess (const path& in_file, const path& out_file, const vector<path>& include_directories) {
+    if (!filesystem::exists(in_file)) {
+        return false;
+    }
+
+    ifstream src(in_file, ios::in|ios::binary);
+    if (!src) {
+        return false;
+    }
+
+    ofstream dst(out_file, ios::out|ios::binary);
+
+    if(!dst){
+        return false;
+    }
+
+    return Preprocess(src, dst, in_file, include_directories);
+}
 
 string GetFileContents(string file) {
     ifstream stream(file);
-
+    
     // конструируем string по двум итераторам
     return {(istreambuf_iterator<char>(stream)), istreambuf_iterator<char>()};
 }
