@@ -88,7 +88,7 @@ bool Preprocess (istream& in, ostream& out, const  path& in_file, const vector<p
 }
 
 // напишите эту функцию
-bool Preprocess (const path& in_file, const path& out_file, const vector<path>& include_directories) {
+bool IsOpenFiles (const path& in_file, const path& out_file, const vector<path>& include_directories) {
     if (!filesystem::exists(in_file)) {
         return false;
     }
@@ -160,7 +160,7 @@ void Test() {
         file << "// std2\n"s;
     }
 
-    assert((!Preprocess("sources"_p / "a.cpp"_p, "sources"_p / "a.in"_p,
+    assert((!IsOpenFiles("sources"_p / "a.cpp"_p, "sources"_p / "a.in"_p,
                                   {"sources"_p / "include1"_p,"sources"_p / "include2"_p})));
 
     ostringstream test_out;
